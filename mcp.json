@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "vscode": {
+      "enabled": true,
+      "type": "stdio",
+      "command": "python3",
+      "args": [
+        "-m",
+        "mcp_server.server"
+      ],
+      "cwd": "/workspace/apps/code-server",
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      }
+    }
+  }
+}
