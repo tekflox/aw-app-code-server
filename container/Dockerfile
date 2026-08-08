@@ -80,10 +80,23 @@ RUN chmod +x /entrypoint.d/10-seed-extensions.sh
 RUN ln -sf /usr/bin/python3 /usr/local/bin/python \
     && ln -sf /usr/bin/pip3 /usr/local/bin/pip
 
-USER coder
 WORKDIR /home/coder/project
 
 EXPOSE 8543
+
+# Run as root at container runtime, not `coder` (uid 1000). aw-workspace's
+# Tier-2 containers run under ROOTLESS podman, where container uid 0 maps
+# to the HOST uid that podman itself runs as — the same uid that owns the
+# $AW_APP_DATA host directory bind-mounted onto /home/coder (aw-workspace's
+# own os.makedirs call). A non-zero container uid maps to a DIFFERENT,
+# unrelated subordinate host uid, which can't write into that directory —
+# confirmed live: code-server silently failed to come up (proxy reported
+# "container unreachable") with `USER coder` here. Every other Tier-2 app
+# in this fleet that mounts $AW_APP_DATA (e.g. aw-app-kb) runs as root for
+# exactly this reason — see that repo's Dockerfile/entrypoint.sh. HOME is
+# set explicitly since root's default is /root, not the coder profile.
+USER root
+ENV HOME=/home/coder
 
 # Bind on 0.0.0.0:8543 (matches aw-app.json's runtime.port) with no auth —
 # the same trust boundary as every other Tier-2 app here: aw-workspace's own

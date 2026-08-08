@@ -22,14 +22,14 @@
     },
     "volumes": [
       {
-        "source": "$AW_WORKSPACE_REPOS",
-        "target": "/home/coder/project",
-        "mode": "ro"
-      },
-      {
         "source": "$AW_APP_DATA",
         "target": "/home/coder",
         "mode": "rw"
+      },
+      {
+        "source": "$AW_WORKSPACE_REPOS",
+        "target": "/home/coder/project",
+        "mode": "ro"
       }
     ]
   },
