@@ -2,7 +2,7 @@
   "manifest_version": 1,
   "id": "code-server",
   "name": "Code Server",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "VS Code in the browser (code-server), with this workspace's repos mounted read-only and a persistent $HOME so extensions and CLI agent logins (claude / codex / copilot) survive container recreates. Ported from the agentic-workspace monolith's code-server integration (src/api/routes/code_server.py, src/mcp/vscode.py, tools/code-server/).",
   "icon": "code",
   "tier": "container",
