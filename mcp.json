@@ -8,7 +8,7 @@
         "-m",
         "mcp_server.server"
       ],
-      "cwd": "/workspace/apps/code-server",
+      "cwd": "/opt/aw-workspace/apps/code-server",
       "env": {
         "PYTHONUNBUFFERED": "1"
       }
