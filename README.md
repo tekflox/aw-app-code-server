@@ -47,8 +47,6 @@ integration:
   `openFile` action requires.
 - `skills/aw-vscode/SKILL.md` — teaches an agent when to reach for
   `open_file` vs. just relaying file contents inline.
-- `schemas/aw-app.schema.json` — local structural validator, same schema
-  every `aw-app-*` repo validates against.
 - `tests/validate_manifest.py` — schema + skills-exist check.
 - `tests/validate_mcp_config.py` — structural check of `mcp.json`.
 - `tests/test_mcp_server.py` — unit tests for the path-translation/URL
