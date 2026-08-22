@@ -24,14 +24,13 @@ scheme code-server's ``openFile`` action requires — a bare ``file://``
 silently fails to open (same rationale as the original ``routes/skills.py``
 comment this was copied from).
 
-**Read-only caveat (new in this port):** ``aw-app.json`` mounts this
-workspace's whole tree at ``/opt/aw-workspace`` **read-only**
-(``$AW_WORKSPACE_ROOT`` — aw-workspace's container-volume vocabulary only
-allows that mount read-only, unlike the monolith's read-write bind). Files
-opened through this tool are viewable and diffable in the editor, but saves
-inside code-server itself will fail; edit through the app you're already
-using this session for (Bash/Edit/Write) and use code-server for reading
-and reviewing.
+**Writable (since v0.12.0):** ``aw-app.json`` mounts this workspace's whole
+tree at ``/opt/aw-workspace`` **read-write** (``$AW_WORKSPACE_ROOT`` at
+``mode: rw``, which costs the high-risk ``fs:workspace-write`` capability —
+signed/marketplace apps only). Saving in the editor really writes, matching
+the monolith's read-write bind. The port shipped read-only first because
+core had no capability covering a container that can rewrite core's own
+source; adding one was the fix, not widening the read grant.
 
 Run: ``python -m mcp_server.server`` (stdio). Registered via this repo's
 root ``mcp.json`` — the gateway spawns it with cwd set to the app root.
@@ -258,7 +257,7 @@ def handle_request(request: dict) -> dict | None:
                                         "/opt/aw-workspace — the whole "
                                         "workspace tree is bind-mounted at "
                                         "that same path inside the editor, "
-                                        "read-only; (b) a path relative to "
+                                        "read-write; (b) a path relative to "
                                         "`workspace` if given, else "
                                         "relative to /opt/aw-workspace/repos "
                                         "and then to /opt/aw-workspace."
@@ -316,7 +315,7 @@ def _open_file(file_path: str, workspace: str | None) -> dict:
 
     lines = [url]
     if container_file:
-        lines.insert(0, f"Opened {container_file} in code-server (read-only mount):")
+        lines.insert(0, f"Opened {container_file} in code-server:")
     return _tool_result("\n".join(lines))
 
 

@@ -3,7 +3,7 @@
   "id": "code-server",
   "name": "Code Server",
   "version": "0.11.0",
-  "description": "VS Code in the browser (code-server), opening on the whole workspace at /opt/aw-workspace (mounted read-only, at the same path the workspace itself uses) with a persistent $HOME so extensions and CLI agent logins (claude / codex / copilot) survive container recreates. Ported from the agentic-workspace monolith's code-server integration (src/api/routes/code_server.py, src/mcp/vscode.py, tools/code-server/).",
+  "description": "VS Code in the browser (code-server), opening on the whole workspace at /opt/aw-workspace (mounted read-write, at the same path the workspace itself uses, so files edited here really save) with a persistent $HOME so extensions and CLI agent logins (claude / codex / copilot) survive container recreates. Ported from the agentic-workspace monolith's code-server integration (src/api/routes/code_server.py, src/mcp/vscode.py, tools/code-server/).",
   "icon": "code",
   "tier": "container",
   "category": "Dev Tools",
@@ -29,14 +29,15 @@
       {
         "source": "$AW_WORKSPACE_ROOT",
         "target": "/opt/aw-workspace",
-        "mode": "ro"
+        "mode": "rw"
       }
     ]
   },
   "permissions": [
     "containers:manage",
     "fs:workspace-data",
-    "fs:workspace-read"
+    "fs:workspace-read",
+    "fs:workspace-write"
   ],
   "contributes": {
     "windows": [

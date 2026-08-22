@@ -14,14 +14,14 @@ integration:
 
 ## What's different from the monolith
 
-- **The workspace mount is read-only.** `aw-workspace`'s Tier-2 container
-  volume vocabulary (`$AW_WORKSPACE_ROOT`) only allows mounting the
-  workspace **read-only** — the monolith bind-mounted its whole
-  project directory read-write. Use code-server here to view/review/diff
-  and to run a real editor's tooling (go-to-definition, search, a CLI
-  agent's terminal); keep making actual edits through whatever tool your
-  agent session is already using. See `mcp_server/server.py`'s module
-  docstring and `skills/aw-vscode/SKILL.md` for the full rationale.
+- **The workspace mount is read-write, at a price.** It reaches parity with
+  the monolith's read-write bind, but `$AW_WORKSPACE_ROOT` at `mode: rw`
+  costs the high-risk `fs:workspace-write` capability — signed/marketplace
+  apps only. The first cut of this port was read-only because core had no
+  capability covering a container that can rewrite core's own source, every
+  app's data and the secret store; the fix was to add one, not to widen
+  `fs:workspace-read`. See `mcp_server/server.py`'s module docstring and
+  `skills/aw-vscode/SKILL.md`.
 - **No dashboard auto-popup.** The monolith broadcast a
   `vscode_open_request` event over its own `/ws/status` so the dashboard
   auto-opened a popup tab. There's no equivalent workspace-wide channel in

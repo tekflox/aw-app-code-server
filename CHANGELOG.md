@@ -5,6 +5,21 @@ implementation notes here instead of expanding the marketplace description.
 
 ## Unreleased
 
+- The workspace mount is now **read-write**, so saving in the editor really
+  writes. This reaches parity with the monolith's bind, which the port had
+  given up. It costs a new high-risk capability in aw-workspace core,
+  `fs:workspace-write` — the read grant was deliberately not widened,
+  because reading the tree and being able to rewrite core's own source, any
+  app's data or the secret store are not the same request.
+- High-risk means signed/marketplace apps only, which core could not
+  actually enforce here until now: volume placeholders gated on what a
+  manifest *declared*, and the Tier-2 signing gate is disabled pending F8,
+  so a side-loaded app would have taken the writable bind just by asking.
+  Core now gates this one on the *granted* set.
+- Note what the mount includes: `.aw-workspace/` (the workspace `.env` and
+  the secret store) is inside it, and is now writable rather than merely
+  readable.
+
 - The editor now opens on the **whole workspace** at `/opt/aw-workspace`
   instead of on `repos/` alone at `/home/coder/project`. Two things were
   wrong with the old default: `src/`, `skills/` and `apps/` — most of what

@@ -9,7 +9,7 @@ This workspace has a Code Server app installed (`aw-app-code-server`) — a
 full VS Code running in a browser tab. It opens on the **whole workspace**
 at `/opt/aw-workspace` — the same absolute path the workspace has outside
 the container, so a path quoted in chat is the path the editor and its
-terminal both use. The tree is mounted **read-only**; `$HOME` persists, so
+terminal both use. The tree is mounted **read-write**; `$HOME` persists, so
 extensions and CLI agent logins (`claude` / `codex` / `copilot`) survive
 container recreates.
 
@@ -36,17 +36,18 @@ Call the `open_file` MCP tool this app registers (namespaced `vscode` in
   if the container isn't already running (a few seconds' delay on that
   first click).
 
-## The read-only caveat
+## Edits in the editor really save
 
-The workspace mount inside code-server is **read-only** — this is a
-platform constraint of `aw-workspace`'s Tier-2 container volume vocabulary
-(`$AW_WORKSPACE_ROOT` can only be mounted `ro` — a writable bind of the
-workspace root would let the container rewrite core's own source), not a
-code-server setting.
-Use this tool to **view, diff, and review** a file with a real editor's
-syntax highlighting/outline/search — keep making actual edits through
-whatever tool you're already using in this session (Bash/Edit/Write), not
-through code-server's own save.
+The workspace mount is **read-write** (since v0.12.0). Ctrl-S in
+code-server writes the real file, and a terminal opened inside it can run
+git, tests, or a CLI coding agent against the actual tree.
+
+That means the usual care applies: it is the same checkout every agent
+session and the workspace itself are using, not a copy. Two things worth
+knowing — `repos/` is ONE shared checkout, so an edit here can collide with
+another session's work; and the mount includes `.aw-workspace/` (the
+workspace `.env` and the secret store), which is now writable, not just
+readable.
 
 ## When to reach for this vs. just quoting the file
 
