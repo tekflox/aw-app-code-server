@@ -4,12 +4,33 @@ import os
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from mcp_server import server  # noqa: E402
 
 
-def test_relative_path_still_resolves_against_repos():
+@pytest.fixture
+def fake_workspace(tmp_path, monkeypatch):
+    """A workspace tree on disk, because resolving a RELATIVE path probes the
+    filesystem to pick between repos/ and the root.
+
+    Pointing WORKSPACE_ROOT_HOST at it (and leaving CODE_SERVER_WORKSPACE on
+    the real /opt/aw-workspace) keeps these tests hermetic AND still
+    exercises the host->container translation. Reading the real
+    /opt/aw-workspace instead passes on a workspace machine and fails
+    everywhere else — which is exactly how this first went red in CI.
+    """
+    (tmp_path / "repos" / "aw-backend" / "src" / "api").mkdir(parents=True)
+    (tmp_path / "repos" / "aw-backend" / "src" / "api" / "app.py").touch()
+    (tmp_path / "src" / "apps").mkdir(parents=True)
+    (tmp_path / "src" / "apps" / "runtime.py").touch()
+    monkeypatch.setattr(server, "WORKSPACE_ROOT_HOST", str(tmp_path))
+    return tmp_path
+
+
+def test_relative_path_still_resolves_against_repos(fake_workspace):
     """The editor roots at the workspace now, but a repo-relative path is
     what callers actually pass — resolving it against the root instead would
     yield a path that doesn't exist and open a blank pane, silently."""
@@ -17,12 +38,19 @@ def test_relative_path_still_resolves_against_repos():
     assert container == "/opt/aw-workspace/repos/aw-backend/src/api/app.py"
 
 
-def test_workspace_relative_path_resolves_against_the_root():
+def test_workspace_relative_path_resolves_against_the_root(fake_workspace):
     """Only reachable because the whole tree is mounted: src/ is not under
     repos/, so this used to translate to a repos/src/... path that isn't
     there."""
     container = server._to_container_path("src/apps/runtime.py", None)
     assert container == "/opt/aw-workspace/src/apps/runtime.py"
+
+
+def test_unresolvable_relative_path_keeps_the_repos_answer(fake_workspace):
+    """Wrong under either base, so the pre-existing behaviour wins rather
+    than the answer flipping on which candidate was probed last."""
+    container = server._to_container_path("nope/whatever.py", None)
+    assert container == "/opt/aw-workspace/repos/nope/whatever.py"
 
 
 def test_absolute_workspace_path_is_an_identity():
