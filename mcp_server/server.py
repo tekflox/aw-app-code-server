@@ -25,8 +25,8 @@ silently fails to open (same rationale as the original ``routes/skills.py``
 comment this was copied from).
 
 **Read-only caveat (new in this port):** ``aw-app.json`` mounts this
-workspace's repos at ``/home/coder/project`` **read-only**
-(``$AW_WORKSPACE_REPOS`` — aw-workspace's container-volume vocabulary only
+workspace's whole tree at ``/opt/aw-workspace`` **read-only**
+(``$AW_WORKSPACE_ROOT`` — aw-workspace's container-volume vocabulary only
 allows that mount read-only, unlike the monolith's read-write bind). Files
 opened through this tool are viewable and diffable in the editor, but saves
 inside code-server itself will fail; edit through the app you're already
@@ -45,20 +45,32 @@ import sys
 from pathlib import Path
 from urllib.parse import quote
 
-# Path inside the code-server container where the workspace repos are
-# bind-mounted (see aw-app.json's $AW_WORKSPACE_REPOS volume). Used to
+# Path inside the code-server container where the workspace tree is
+# bind-mounted (see aw-app.json's $AW_WORKSPACE_ROOT volume). Used to
 # translate host paths (e.g. what an agent session sees at
-# /opt/aw-workspace/repos/...) into the URIs code-server's frontend can open.
-CODE_SERVER_WORKSPACE = "/home/coder/project"
+# /opt/aw-workspace/...) into the URIs code-server's frontend can open.
+#
+# Deliberately the SAME absolute path the workspace has outside the
+# container. It used to be /home/coder/project mapped onto the host's
+# repos/ dir, which made the translation below load-bearing and meant a
+# path quoted in chat was never the path the editor showed. Two roots that
+# are equal make it an identity for anything under the workspace, and — the
+# actual reason for the change — the editor now opens on the whole
+# workspace instead of repos/ alone, so src/, skills/ and apps/ are
+# reachable from the editor that is supposed to show them.
+CODE_SERVER_WORKSPACE = os.environ.get(
+    "AW_CODE_SERVER_WORKSPACE", "/opt/aw-workspace"
+).rstrip("/")
 
 # The host-side path that maps 1:1 onto CODE_SERVER_WORKSPACE — this
 # process usually runs on the SAME machine/mount as the workspace (spawned
 # by aw-app-mcp-gateway with the shared filesystem), so an agent-supplied
 # absolute path under this root gets translated; anything else is treated
 # as already container-relative/absolute. Override via
-# AW_WORKSPACE_REPOS_HOST if that mount point ever changes.
-WORKSPACE_REPOS_HOST = os.environ.get(
-    "AW_WORKSPACE_REPOS_HOST", "/opt/aw-workspace/repos"
+# AW_WORKSPACE_ROOT_HOST if that mount point ever changes.
+WORKSPACE_ROOT_HOST = os.environ.get(
+    "AW_WORKSPACE_ROOT_HOST",
+    os.environ.get("AW_WORKSPACE_CONTAINER_DIR", "/opt/aw-workspace"),
 ).rstrip("/")
 
 # Base URL this app's window is reverse-proxied under
@@ -102,23 +114,53 @@ def _read_workspace_env(name: str) -> str | None:
     return None
 
 
+def _relative_base(path: str, workspace: str | None) -> Path:
+    """Host-side directory a RELATIVE ``path`` is resolved against.
+
+    Callers overwhelmingly pass a repo-relative path (``aw-backend/src/api/
+    app.py``), so ``repos/`` stays the first candidate rather than the
+    workspace root that is now mounted — resolving ``aw-backend/...``
+    against the root yields a path that does not exist, and this app's most
+    expensive failure mode is exactly that: code-server opens a blank pane
+    instead of reporting the miss. The root is tried second, so
+    ``src/apps/runtime.py`` (workspace-relative, and only meaningful now
+    that the whole tree is visible) resolves too.
+
+    The candidates are probed with ``path`` appended, not on their own —
+    ``repos/`` always exists, so testing the bases alone would always pick
+    it and the second candidate would be dead code.
+
+    When neither candidate exists the repos/ answer wins, preserving the
+    previous behaviour for a path that is wrong either way.
+    """
+    root = Path(WORKSPACE_ROOT_HOST)
+    repos = root / "repos"
+    candidates = [repos / workspace, root / workspace] if workspace else [repos, root]
+    for base in candidates:
+        if (base / path).exists():
+            return base
+    return candidates[0]
+
+
 def _to_container_path(path: str, workspace: str | None) -> str:
     """Return an absolute container-side path under CODE_SERVER_WORKSPACE.
 
     Rules (first match wins):
       1. ``path`` already lives inside the container workspace → use as-is.
-      2. ``path`` is absolute on the host under WORKSPACE_REPOS_HOST →
-         translate ``/opt/aw-workspace/repos/foo`` →
-         ``/home/coder/project/foo``.
+      2. ``path`` is absolute on the host under WORKSPACE_ROOT_HOST →
+         translate ``/opt/aw-workspace/foo`` → ``<cs_root>/foo``. The app
+         now mounts the tree at its own path, so the two roots are normally
+         equal and this is an identity — kept because the env overrides
+         above exist precisely so they can diverge.
       3. ``path`` is absolute but elsewhere → trust the caller; it's a
          container-absolute path.
       4. ``path`` is relative → resolve against ``workspace`` if given,
-         else WORKSPACE_REPOS_HOST, and re-translate.
+         else ``repos/`` (see ``_relative_base``), and re-translate.
     """
     if not path:
         raise ValueError("path is required")
 
-    host_root = Path(WORKSPACE_REPOS_HOST)
+    host_root = Path(WORKSPACE_ROOT_HOST)
     cs_root = Path(CODE_SERVER_WORKSPACE)
     p = Path(path)
 
@@ -127,9 +169,7 @@ def _to_container_path(path: str, workspace: str | None) -> str:
             base = Path(workspace)
             if base.is_absolute() and str(base).startswith(str(cs_root)):
                 return str(base / path)
-            joined = (host_root / workspace / path).resolve()
-        else:
-            joined = (host_root / path).resolve()
+        joined = (_relative_base(path, workspace) / path).resolve()
         try:
             rel = joined.relative_to(host_root)
             return str(cs_root / rel)
@@ -214,15 +254,14 @@ def handle_request(request: dict) -> dict | None:
                                     "type": "string",
                                     "description": (
                                         "Path to the file. Accepts: (a) an "
-                                        "absolute host path under "
-                                        "/opt/aw-workspace/repos, translated "
-                                        "to the container's read-only "
-                                        "bind-mount; (b) an absolute "
-                                        "container path under "
-                                        "/home/coder/project, used as-is; "
-                                        "(c) a path relative to `workspace` "
-                                        "if given, else to "
-                                        "/opt/aw-workspace/repos."
+                                        "absolute path under "
+                                        "/opt/aw-workspace — the whole "
+                                        "workspace tree is bind-mounted at "
+                                        "that same path inside the editor, "
+                                        "read-only; (b) a path relative to "
+                                        "`workspace` if given, else "
+                                        "relative to /opt/aw-workspace/repos "
+                                        "and then to /opt/aw-workspace."
                                     ),
                                 },
                                 "workspace": {

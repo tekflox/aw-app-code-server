@@ -15,8 +15,8 @@ integration:
 ## What's different from the monolith
 
 - **The workspace mount is read-only.** `aw-workspace`'s Tier-2 container
-  volume vocabulary (`$AW_WORKSPACE_REPOS`) only allows mounting the
-  workspace's repos **read-only** — the monolith bind-mounted its whole
+  volume vocabulary (`$AW_WORKSPACE_ROOT`) only allows mounting the
+  workspace **read-only** — the monolith bind-mounted its whole
   project directory read-write. Use code-server here to view/review/diff
   and to run a real editor's tooling (go-to-definition, search, a CLI
   agent's terminal); keep making actual edits through whatever tool your
@@ -31,6 +31,15 @@ integration:
   storage tree) onto `/home/coder`, so extensions and CLI agent logins
   (`claude` / `codex` / `copilot`) survive container recreates, same as the
   monolith's `./data/code-server-data:/home/coder`.
+
+- **It opens on the workspace root, at the workspace's own path.** The
+  editor roots at `/opt/aw-workspace` and the bind-mount lands there too,
+  rather than at a container-local `/home/coder/project`. That was a
+  deliberate change from the first port, which mounted only `repos/`: half
+  of what actually gets worked on here (`src/`, `skills/`, `apps/`) was
+  unreachable from the editor meant to show it, and every path had to be
+  mentally translated between what an agent quoted and what the editor
+  displayed.
 
 ## Layout
 

@@ -3,7 +3,7 @@
   "id": "code-server",
   "name": "Code Server",
   "version": "0.10.0",
-  "description": "VS Code in the browser (code-server), with this workspace's repos mounted read-only and a persistent $HOME so extensions and CLI agent logins (claude / codex / copilot) survive container recreates. Ported from the agentic-workspace monolith's code-server integration (src/api/routes/code_server.py, src/mcp/vscode.py, tools/code-server/).",
+  "description": "VS Code in the browser (code-server), opening on the whole workspace at /opt/aw-workspace (mounted read-only, at the same path the workspace itself uses) with a persistent $HOME so extensions and CLI agent logins (claude / codex / copilot) survive container recreates. Ported from the agentic-workspace monolith's code-server integration (src/api/routes/code_server.py, src/mcp/vscode.py, tools/code-server/).",
   "icon": "code",
   "tier": "container",
   "category": "Dev Tools",
@@ -27,8 +27,8 @@
         "mode": "rw"
       },
       {
-        "source": "$AW_WORKSPACE_REPOS",
-        "target": "/home/coder/project",
+        "source": "$AW_WORKSPACE_ROOT",
+        "target": "/opt/aw-workspace",
         "mode": "ro"
       }
     ]
@@ -47,7 +47,7 @@
         "body": {
           "type": "managed_app",
           "kind": "web",
-          "path": "/?folder=/home/coder/project"
+          "path": "/?folder=/opt/aw-workspace"
         }
       }
     ],

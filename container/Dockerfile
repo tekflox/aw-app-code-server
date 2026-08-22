@@ -80,7 +80,7 @@ RUN chmod +x /entrypoint.d/10-seed-extensions.sh
 RUN ln -sf /usr/bin/python3 /usr/local/bin/python \
     && ln -sf /usr/bin/pip3 /usr/local/bin/pip
 
-WORKDIR /home/coder/project
+WORKDIR /opt/aw-workspace
 
 EXPOSE 8543
 
@@ -103,4 +103,10 @@ ENV HOME=/home/coder
 # IdentityGuard sits in front of the container's reverse-proxy mount, so
 # code-server itself doesn't need to authenticate the browser separately.
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
-CMD ["--bind-addr", "0.0.0.0:8543", "--auth", "none", "--disable-workspace-trust", "/home/coder/project"]
+# The folder code-server opens with. aw-app.json bind-mounts the workspace
+# tree at the SAME absolute path it has outside (/opt/aw-workspace) rather
+# than the old /home/coder/project, so a path an agent quotes in chat is the
+# path the editor and its terminal both use — no translation for the human
+# to do in their head. Note this is a directory the mount provides: run this
+# image without that bind and code-server opens an empty folder.
+CMD ["--bind-addr", "0.0.0.0:8543", "--auth", "none", "--disable-workspace-trust", "/opt/aw-workspace"]

@@ -6,8 +6,10 @@ description: Open a file or folder in this workspace's browser-based VS Code (co
 # aw-vscode — open files in the browser-based VS Code
 
 This workspace has a Code Server app installed (`aw-app-code-server`) — a
-full VS Code running in a browser tab, with this workspace's repos mounted
-**read-only** at `/home/coder/project` and a persistent `$HOME` so
+full VS Code running in a browser tab. It opens on the **whole workspace**
+at `/opt/aw-workspace` — the same absolute path the workspace has outside
+the container, so a path quoted in chat is the path the editor and its
+terminal both use. The tree is mounted **read-only**; `$HOME` persists, so
 extensions and CLI agent logins (`claude` / `codex` / `copilot`) survive
 container recreates.
 
@@ -23,9 +25,11 @@ Call the `open_file` MCP tool this app registers (namespaced `vscode` in
 }
 ```
 
-- `file_path` accepts a host path under `/opt/aw-workspace/repos/...`, a
-  container path under `/home/coder/project/...`, or a path relative to
-  `workspace` (or to `/opt/aw-workspace/repos` if `workspace` is omitted).
+- `file_path` accepts any absolute path under `/opt/aw-workspace/...`
+  (used as-is — inside and outside are the same path now), or a relative
+  path. A relative path resolves against `workspace` if given; otherwise
+  it's tried under `repos/` first and then under the workspace root, so
+  both `aw-backend/src/api/app.py` and `src/apps/runtime.py` work.
 - `workspace` is optional — it only roots the file-explorer pane; omit it
   to have the explorer default to the file's own parent directory.
 - The tool returns a clickable URL. code-server auto-starts on first open
@@ -36,7 +40,9 @@ Call the `open_file` MCP tool this app registers (namespaced `vscode` in
 
 The workspace mount inside code-server is **read-only** — this is a
 platform constraint of `aw-workspace`'s Tier-2 container volume vocabulary
-(`$AW_WORKSPACE_REPOS` can only be mounted `ro`), not a code-server setting.
+(`$AW_WORKSPACE_ROOT` can only be mounted `ro` — a writable bind of the
+workspace root would let the container rewrite core's own source), not a
+code-server setting.
 Use this tool to **view, diff, and review** a file with a real editor's
 syntax highlighting/outline/search — keep making actual edits through
 whatever tool you're already using in this session (Bash/Edit/Write), not
