@@ -3,7 +3,7 @@ repo: architecture
 path: docs/architecture/aw-app-code-server.md
 source: generated
 edited: false
-checksum: sha256:c01069b070c655736e199b2081d0dc57e21ddc9a92842add2fd8d5f836633c73
+checksum: sha256:939737e7515c0ef7c33eb6e1c7378c37629e0c382ca5cec52bbc2e04cb221fd9
 ---
 # Code Server
 
@@ -12,7 +12,7 @@ checksum: sha256:c01069b070c655736e199b2081d0dc57e21ddc9a92842add2fd8d5f836633c7
 - **technologies**: docker
 - **health** (derived): planned
 
-VS Code in the browser (code-server), with this workspace's repos mounted read-only and a persistent $HOME so extensions and CLI agent logins (claude / codex / copilot) survive container recreates. Ported from the agentic-workspace monolith's code-server integration (src/api/routes/code_server.py, src/mcp/vscode.py, tools/code-server/).
+VS Code in the browser (code-server), opening on the whole workspace at /opt/aw-workspace (mounted read-write, at the same path the workspace itself uses, so files edited here really save) with a persistent $HOME so extensions and CLI agent logins (claude / codex / copilot) survive container recreates. Ported from the agentic-workspace monolith's code-server integration (src/api/routes/code_server.py, src/mcp/vscode.py, tools/code-server/).
 
 ## Connections
 _none_
