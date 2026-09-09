@@ -49,6 +49,15 @@ integration:
   `ghcr.io/tekflox/aw-app-code-server`.
 - `container/seed-extensions.sh` — copies build-time-baked extensions into
   the mounted (and otherwise-shadowing) `$HOME` on first boot.
+- `container/ios-kbd-suppressor.js` — keeps the iOS on-screen keyboard down
+  while a Bluetooth keyboard is in use, driven by the workspace shell's
+  suppress toggle over `postMessage` (the iframe is cross-origin, so the
+  shell cannot reach in). Read its header before changing it: the choice of
+  `readonly` over a focus proxy, and the `EditContext` fork that would
+  otherwise make the whole thing a silent no-op, are both explained there.
+- `container/patch-workbench.py` — bakes the above into code-server's
+  `workbench.html` at image build time, and **fails the build** rather than
+  ship an image whose suppressor is silently missing.
 - `mcp.json` — registers the `vscode` stdio MCP server
   (`mcp_server/server.py`) with `aw-mcp-gateway`'s app scan.
 - `mcp_server/server.py` — the `open_file` MCP tool: host/container path
@@ -60,6 +69,8 @@ integration:
 - `tests/validate_mcp_config.py` — structural check of `mcp.json`.
 - `tests/test_mcp_server.py` — unit tests for the path-translation/URL
   logic (no running workspace needed).
+- `tests/test_patch_workbench.py` — proves the workbench patcher's failure
+  modes actually fail (moved file, missing anchor, a new CSP, double patch).
 
 ## Install
 

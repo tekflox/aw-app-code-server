@@ -75,6 +75,23 @@ USER root
 COPY seed-extensions.sh /entrypoint.d/10-seed-extensions.sh
 RUN chmod +x /entrypoint.d/10-seed-extensions.sh
 
+# ── iOS on-screen-keyboard suppressor ────────────────────────────────────────
+# Frederico uses this editor from an iPhone with a Bluetooth keyboard, and the
+# native on-screen keyboard covers most of the screen. The workspace shell
+# already has a global "suppress keyboard" toggle, but it cannot reach in here:
+# this app is served from code-server.app.<apex> while the shell is at <apex>,
+# so the iframe is cross-origin and contentDocument is blocked. The suppressor
+# therefore has to ship inside the page code-server serves, and it talks to the
+# shell over postMessage. See container/ios-kbd-suppressor.js for the mechanism.
+#
+# Patched at build time rather than at container start so a broken patch is a
+# broken BUILD. The patcher exits non-zero on any surprise (file moved, anchor
+# missing, a CSP appearing) — a `codercom/code-server:latest` bump that changes
+# workbench.html would otherwise produce a perfectly healthy image whose
+# suppressor is silently absent, which nobody would notice for months.
+COPY ios-kbd-suppressor.js patch-workbench.py /opt/aw-kbd/
+RUN python3 /opt/aw-kbd/patch-workbench.py
+
 # ── Shell config ─────────────────────────────────────────────────────────────
 # Make python3/pip3 available as python/pip for convenience
 RUN ln -sf /usr/bin/python3 /usr/local/bin/python \
