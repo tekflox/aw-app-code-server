@@ -316,12 +316,18 @@
   }
 
   function sayHello() {
-    if (window.parent === window) return;
+    // Two ways this document can be embedded: a shell <iframe> (window.parent
+    // !== window), or a window.open() popup (window.opener set, parent is
+    // always window itself there). Try whichever applies — both post to the
+    // same set of trusted origins, so trying both when both happen to be set
+    // is harmless.
+    var target = window.parent !== window ? window.parent : window.opener;
+    if (!target) return;
     var targets = helloTargets();
     for (var i = 0; i < targets.length; i++) {
       try {
-        window.parent.postMessage({ type: HELLO_MSG }, targets[i]);
-      } catch (e) { /* parent gone */ }
+        target.postMessage({ type: HELLO_MSG }, targets[i]);
+      } catch (e) { /* parent/opener gone */ }
     }
   }
 
