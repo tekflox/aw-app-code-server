@@ -8,16 +8,11 @@ aw-app-whiteboard concept: the gateway that federates a session's tools
 (``aw-app-mcp-gateway``) scans each installed app's own root ``mcp.json``
 and spawns whatever it declares.
 
-Dropped in the port (monolith-only concepts that don't apply once this
-lives inside the app's own repo):
-  * The ``broadcast`` / ``vscode_open_request`` WebSocket push that made the
-    monolith's dashboard auto-open a popup tab. There is no equivalent
-    workspace-wide ``/ws/status`` channel in the decoupled runtime — this
-    tool just returns the URL; the caller (human or agent) opens it.
-  * ``.tmp/awserv_api_key`` file lookup. This tool doesn't actually need to
-    authenticate anywhere — the URL it builds is a plain browser link into
-    this app's own reverse-proxied mount, not a workspace API call — so no
-    ``X-Api-Key`` is needed at all, unlike ``aw-app-whiteboard``'s MCP.
+Unlike the old monolith-only ``vscode_open_request`` message on
+``/ws/status``, the automatic open now uses aw-workspace's generic,
+manifest-declared app-event door.  The tool still returns the deep link as a
+fallback, but also emits ``open_file`` with that URL; the shell owns the only
+allowed reaction (open/focus ``code-server.main``).
 
 Kept: the host/container path translation, and the ``vscode-remote:`` URI
 scheme code-server's ``openFile`` action requires — a bare ``file://``
@@ -38,11 +33,14 @@ root ``mcp.json`` — the gateway spawns it with cwd set to the app root.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 import sys
 from pathlib import Path
 from urllib.parse import quote
+from urllib.request import Request, urlopen
 
 # Path inside the code-server container where the workspace tree is
 # bind-mounted (see aw-app.json's $AW_WORKSPACE_ROOT volume). Used to
@@ -210,6 +208,63 @@ def _tool_result(text: str, is_error: bool = False) -> dict:
     return {"content": [{"type": "text", "text": text}], "isError": is_error}
 
 
+def _app_event_credentials() -> tuple[str | None, str | None]:
+    """Return the app-scoped event URL/token without ever logging the token.
+
+    Tier-2 containers receive both variables directly.  This stdio MCP server
+    is spawned by the shared gateway instead, so older runtimes do not pass
+    them through; in that case derive the same scoped HMAC from the durable
+    workspace key already mounted for gateway children.  The emitted request
+    still carries only the code-server credential, never the master key.
+    """
+    url = os.environ.get("AW_APP_EVENT_URL")
+    token = os.environ.get("AW_APP_EVENT_TOKEN")
+    if url and token:
+        return url, token
+
+    workspace_key = _read_workspace_env("AW_WORKSPACE_API_KEY")
+    if not workspace_key:
+        return None, None
+    digest = hmac.new(
+        workspace_key.encode("utf-8"),
+        b"aw-app-event/v1:code-server",
+        hashlib.sha256,
+    ).hexdigest()
+    return (
+        f"{_base_url()}/api/apps/code-server/events",
+        f"awev1_{digest}",
+    )
+
+
+def _emit_open_file(url: str) -> str | None:
+    """Emit the declared shell event; return a warning string on failure.
+
+    Opening the editor is an enhancement to the existing URL-return contract,
+    so a transient shell/API failure must not turn a usable ``open_file``
+    result into an MCP error.
+    """
+    event_url, token = _app_event_credentials()
+    if not event_url or not token:
+        return "automatic window open unavailable (app-event credential missing)"
+    body = json.dumps({"event": "open_file", "data": {"url": url}}).encode("utf-8")
+    request = Request(
+        event_url,
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": "application/json",
+            "X-AW-App-Event-Token": token,
+        },
+    )
+    try:
+        with urlopen(request, timeout=5) as response:  # noqa: S310 - trusted workspace URL
+            if response.status != 200:
+                return f"automatic window open failed (HTTP {response.status})"
+    except Exception as exc:  # noqa: BLE001 - URL fallback remains useful
+        return f"automatic window open failed ({type(exc).__name__})"
+    return None
+
+
 def handle_request(request: dict) -> dict | None:
     method = request.get("method", "")
     req_id = request.get("id")
@@ -316,6 +371,9 @@ def _open_file(file_path: str, workspace: str | None) -> dict:
     lines = [url]
     if container_file:
         lines.insert(0, f"Opened {container_file} in code-server:")
+    warning = _emit_open_file(url)
+    if warning:
+        lines.append(f"Warning: {warning}.")
     return _tool_result("\n".join(lines))
 
 

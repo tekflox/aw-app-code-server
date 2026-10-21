@@ -37,7 +37,8 @@
     "containers:manage",
     "fs:workspace-data",
     "fs:workspace-read",
-    "fs:workspace-write"
+    "fs:workspace-write",
+    "notifications:send"
   ],
   "contributes": {
     "windows": [
@@ -49,6 +50,16 @@
           "type": "managed_app",
           "kind": "web",
           "path": "/?folder=/opt/aw-workspace"
+        }
+      }
+    ],
+    "event_hooks": [
+      {
+        "event": "open_file",
+        "action": {
+          "type": "open_window",
+          "window": "code-server.main",
+          "url_field": "url"
         }
       }
     ],

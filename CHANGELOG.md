@@ -5,6 +5,11 @@ implementation notes here instead of expanding the marketplace description.
 
 ## Unreleased
 
+- `open_file` now opens or focuses the shell-managed Code Server window via
+  the generic manifest event-hook mechanism and still returns its clickable
+  deep link as a fallback. No app-specific shell code or demo endpoint is
+  required.
+
 - The editor no longer raises the **iOS on-screen keyboard** when the
   workspace's "suppress keyboard" toggle is on. That toggle already worked
   for the shell's own fields, but could never reach in here: this app is

@@ -32,9 +32,10 @@ Call the `open_file` MCP tool this app registers (namespaced `vscode` in
   both `aw-backend/src/api/app.py` and `src/apps/runtime.py` work.
 - `workspace` is optional — it only roots the file-explorer pane; omit it
   to have the explorer default to the file's own parent directory.
-- The tool returns a clickable URL. code-server auto-starts on first open
-  if the container isn't already running (a few seconds' delay on that
-  first click).
+- The tool asks the workspace shell to open or focus Code Server at that file
+  and also returns the clickable URL as a fallback. code-server auto-starts
+  on first open if the container isn't already running (a few seconds' delay
+  on that first open).
 
 ## Edits in the editor really save
 

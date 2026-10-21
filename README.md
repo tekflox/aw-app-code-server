@@ -22,10 +22,11 @@ integration:
   app's data and the secret store; the fix was to add one, not to widen
   `fs:workspace-read`. See `mcp_server/server.py`'s module docstring and
   `skills/aw-vscode/SKILL.md`.
-- **No dashboard auto-popup.** The monolith broadcast a
-  `vscode_open_request` event over its own `/ws/status` so the dashboard
-  auto-opened a popup tab. There's no equivalent workspace-wide channel in
-  the decoupled runtime — `open_file` just returns the URL to click.
+- **Generic shell-managed opening.** `open_file` emits the manifest-declared
+  `open_file` app event. The workspace shell opens or focuses the existing
+  `code-server.main` window with the deep-link URL; no app-specific UI code,
+  arbitrary JavaScript, or demo endpoint is involved. The tool still returns
+  the URL as a clickable fallback if event delivery is unavailable.
 - **`$HOME` persistence** still works the same way: `aw-app.json` mounts
   `$AW_APP_DATA` (a per-app directory under the workspace's own durable
   storage tree) onto `/home/coder`, so extensions and CLI agent logins
