@@ -10,7 +10,9 @@
       ],
       "cwd": "/opt/aw-workspace/apps/code-server",
       "env": {
-        "PYTHONUNBUFFERED": "1"
+        "PYTHONUNBUFFERED": "1",
+        "AW_APP_EVENT_TOKEN": "${app.event_token}",
+        "AW_APP_EVENT_URL": "${app.event_url}"
       }
     }
   }
