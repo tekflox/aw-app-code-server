@@ -2,7 +2,6 @@
 no running workspace or container needed."""
 import json
 import os
-from pathlib import Path
 import sys
 from pathlib import Path
 
