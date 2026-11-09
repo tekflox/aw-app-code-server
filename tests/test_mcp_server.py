@@ -163,3 +163,12 @@ def test_tools_list_exposes_open_file():
     result = server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     names = [t["name"] for t in result["result"]["tools"]]
     assert names == ["open_file"]
+
+
+def test_gateway_upstream_requests_scoped_app_event_credentials():
+    template = json.loads(
+        (Path(__file__).parents[1] / "mcp.template.json").read_text())
+
+    env = template["mcpServers"]["vscode"]["env"]
+    assert env["AW_APP_EVENT_TOKEN"] == "${app.event_token}"
+    assert env["AW_APP_EVENT_URL"] == "${app.event_url}"
